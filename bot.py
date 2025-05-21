@@ -1,14 +1,15 @@
 import tweepy
-import openai
 import os
 import time
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
-# APIキー読み込み
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAIクライアント初期化
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Twitter API認証
 client = tweepy.Client(
     bearer_token=os.getenv("BEARER_TOKEN"),
     consumer_key=os.getenv("API_KEY"),
@@ -17,16 +18,22 @@ client = tweepy.Client(
     access_token_secret=os.getenv("ACCESS_TOKEN_SECRET")
 )
 
+# 対象アカウント
 TARGET_USERNAME = "ReHuman_parkour"
 
+# ChatGPTで返信生成（OpenAI v1形式）
 def generate_reply(tweet_text):
     prompt = f"このツイートに誠実で鋭い日本語のリプライを作成してください:\n\n{tweet_text}"
-    response = openai.ChatCompletion.create(
+    response = openai_client.chat.completions.create(
         model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "あなたはX（旧Twitter）上で魅力的な返事をする知的なBotです。"},
+            {"role": "user", "content": prompt}
+        ]
     )
-    return response.choices[0].message["content"]
+    return response.choices[0].message.content
 
+# メイン処理
 try:
     user = client.get_user(username=TARGET_USERNAME)
     tweets = client.get_users_tweets(id=user.data.id, max_results=5)
