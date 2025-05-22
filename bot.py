@@ -1,26 +1,15 @@
-import tweepy
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
 import gspread
 from google.oauth2.service_account import Credentials
 
-# .env読み込み
 load_dotenv()
 
-# OpenAIクライアント
+# OpenAI初期化
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# OAuth1.0a認証（tweepy.API用）
-auth = tweepy.OAuth1UserHandler(
-    consumer_key=os.getenv("API_KEY"),
-    consumer_secret=os.getenv("API_KEY_SECRET"),
-    access_token=os.getenv("ACCESS_TOKEN"),
-    access_token_secret=os.getenv("ACCESS_TOKEN_SECRET")
-)
-api = tweepy.API(auth)
-
-# gspread認証設定
+# Sheets保存関数
 def save_to_sheet(tweet_text, reply_text):
     google_creds_dict = {
         "type": os.getenv("GOOGLE_TYPE"),
@@ -41,7 +30,7 @@ def save_to_sheet(tweet_text, reply_text):
     sheet = client.open("ReHumanログ").sheet1
     sheet.append_row([tweet_text, reply_text])
 
-# リプライ生成
+# GPTでリプライ生成
 def generate_reply(tweet_text):
     prompt = f"このツイートに誠実で鋭い日本語のリプライを作成してください:\n\n{tweet_text}"
     response = client_ai.chat.completions.create(
@@ -53,26 +42,9 @@ def generate_reply(tweet_text):
     )
     return response.choices[0].message.content.strip()
 
-# メイン処理
-TARGET_USERNAME = "ReHuman_parkour"
-
-try:
-    user = api.get_user(screen_name=TARGET_USERNAME)
-    tweets = api.user_timeline(user_id=user.id, count=5, tweet_mode="extended")
-
-    if tweets:
-        latest_tweet = tweets[0]
-        reply = generate_reply(latest_tweet.full_text)
-        api.update_status(
-            status=f"@{user.screen_name} {reply}",
-            in_reply_to_status_id=latest_tweet.id
-        )
-        print("送信済みリプライ：", reply)
-        save_to_sheet(latest_tweet.full_text, reply)
-    else:
-        print("ツイートが見つかりませんでした。")
-
-except tweepy.TweepyException as e:
-    print("Tweepyエラー:", str(e))
-except Exception as e:
-    print("予期しないエラー：", str(e))
+# 実行テスト
+if __name__ == "__main__":
+    tweet = "人生は短い。だからこそ、本当にやりたいことに時間を使いたい。"
+    reply = generate_reply(tweet)
+    print("生成されたリプライ：", reply)
+    save_to_sheet(tweet, reply)
