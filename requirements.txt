@@ -1,6 +1,4 @@
-tweepy
 openai>=1.0.0
 python-dotenv
 gspread
 google-auth
-oauth2client
