@@ -44,6 +44,7 @@ try:
         reply = generate_reply(latest_tweet.text)
         client.create_tweet(in_reply_to_tweet_id=latest_tweet.id, text=reply)
         print("送信済みリプライ：", reply)
+        save_to_sheet(latest_tweet.text, reply)
     else:
         print("ツイートが見つかりませんでした。")
 
