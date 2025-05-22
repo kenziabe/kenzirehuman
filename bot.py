@@ -53,3 +53,15 @@ except tweepy.TooManyRequests:
 
 except Exception as e:
     print("予期しないエラー：", str(e))
+    import gspread
+from google.oauth2.service_account import Credentials
+
+def save_to_sheet(tweet_text, reply_text):
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_file(
+        "credentials.json",  # Railwayではこの内容を環境変数にして後述する別方法が必要
+        scopes=scopes
+    )
+    client = gspread.authorize(creds)
+    sheet = client.open("ReHumanログ").sheet1
+    sheet.append_row([tweet_text, reply_text])
