@@ -45,6 +45,31 @@ try:
         client.create_tweet(in_reply_to_tweet_id=latest_tweet.id, text=reply)
         print("送信済みリプライ：", reply)
         save_to_sheet(latest_tweet.text, reply)
+        import gspread
+import os
+from oauth2client.service_account import ServiceAccountCredentials
+
+def save_to_sheet(tweet_text, reply_text):
+    google_creds_dict = {
+        "type": os.getenv("GOOGLE_TYPE"),
+        "project_id": os.getenv("GOOGLE_PROJECT_ID"),
+        "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
+        "private_key": os.getenv("GOOGLE_PRIVATE_KEY").replace('\\n', '\n'),
+        "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
+        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "auth_uri": os.getenv("GOOGLE_AUTH_URI"),
+        "token_uri": os.getenv("GOOGLE_TOKEN_URI"),
+        "auth_provider_x509_cert_url": os.getenv("GOOGLE_AUTH_PROVIDER_CERT_URL"),
+        "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL")
+    }
+
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(google_creds_dict, scope)
+    client = gspread.authorize(creds)
+
+    # ここでスプレッドシート名を指定（Google Drive 上に作成済みのもの）
+    sheet = client.open("ReHumanログ").sheet1
+    sheet.append_row([tweet_text, reply_text])
     else:
         print("ツイートが見つかりませんでした。")
 
