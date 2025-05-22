@@ -9,23 +9,13 @@ load_dotenv()
 # OpenAI初期化
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Sheets保存関数
+# Sheets保存関数（credentials.jsonを直接読み込む方式）
 def save_to_sheet(tweet_text, reply_text):
-    google_creds_dict = {
-        "type": os.getenv("GOOGLE_TYPE"),
-        "project_id": os.getenv("GOOGLE_PROJECT_ID"),
-        "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-        "private_key": os.getenv("GOOGLE_PRIVATE_KEY").replace('\\n', '\n'),
-        "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "auth_uri": os.getenv("GOOGLE_AUTH_URI"),
-        "token_uri": os.getenv("GOOGLE_TOKEN_URI"),
-        "auth_provider_x509_cert_url": os.getenv("GOOGLE_AUTH_PROVIDER_CERT_URL"),
-        "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL")
-    }
-
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open("ReHumanログ").sheet1
     sheet.append_row([tweet_text, reply_text])
