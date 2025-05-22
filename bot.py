@@ -1,27 +1,26 @@
 import tweepy
 import os
-import time
-import gspread
-from openai import OpenAI
 from dotenv import load_dotenv
+from openai import OpenAI
+import gspread
 from google.oauth2.service_account import Credentials
 
-# 環境変数の読み込み
+# .env読み込み
 load_dotenv()
 
-# OpenAIクライアント初期化
+# OpenAIクライアント
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Twitter API認証
-client_tw = tweepy.Client(
-    bearer_token=os.getenv("BEARER_TOKEN"),
+# OAuth1.0a認証（tweepy.API用）
+auth = tweepy.OAuth1UserHandler(
     consumer_key=os.getenv("API_KEY"),
     consumer_secret=os.getenv("API_KEY_SECRET"),
     access_token=os.getenv("ACCESS_TOKEN"),
     access_token_secret=os.getenv("ACCESS_TOKEN_SECRET")
 )
+api = tweepy.API(auth)
 
-# Google Sheetsに保存する関数
+# gspread認証設定
 def save_to_sheet(tweet_text, reply_text):
     google_creds_dict = {
         "type": os.getenv("GOOGLE_TYPE"),
@@ -42,7 +41,7 @@ def save_to_sheet(tweet_text, reply_text):
     sheet = client.open("ReHumanログ").sheet1
     sheet.append_row([tweet_text, reply_text])
 
-# リプライ文を生成する関数
+# リプライ生成
 def generate_reply(tweet_text):
     prompt = f"このツイートに誠実で鋭い日本語のリプライを作成してください:\n\n{tweet_text}"
     response = client_ai.chat.completions.create(
@@ -58,21 +57,22 @@ def generate_reply(tweet_text):
 TARGET_USERNAME = "ReHuman_parkour"
 
 try:
-    user = client_tw.get_user(username=TARGET_USERNAME)
-    tweets = client_tw.get_users_tweets(id=user.data.id, max_results=5)
+    user = api.get_user(screen_name=TARGET_USERNAME)
+    tweets = api.user_timeline(user_id=user.id, count=5, tweet_mode="extended")
 
-    if tweets.data:
-        latest_tweet = tweets.data[0]
-        reply = generate_reply(latest_tweet.text)
-        client_tw.create_tweet(in_reply_to_tweet_id=latest_tweet.id, text=reply)
+    if tweets:
+        latest_tweet = tweets[0]
+        reply = generate_reply(latest_tweet.full_text)
+        api.update_status(
+            status=f"@{user.screen_name} {reply}",
+            in_reply_to_status_id=latest_tweet.id
+        )
         print("送信済みリプライ：", reply)
-        save_to_sheet(latest_tweet.text, reply)
+        save_to_sheet(latest_tweet.full_text, reply)
     else:
         print("ツイートが見つかりませんでした。")
 
-except tweepy.TooManyRequests:
-    print("リクエストが多すぎます。15分待機します。")
-    time.sleep(900)
-
+except tweepy.TweepyException as e:
+    print("Tweepyエラー:", str(e))
 except Exception as e:
     print("予期しないエラー：", str(e))
