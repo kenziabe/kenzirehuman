@@ -1,16 +1,16 @@
 import os
 import gspread
+from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
-from dotenv import load_dotenv
 
-# 環境変数の読み込み（ローカル開発時）
+# ローカル用：環境変数の読み込み
 load_dotenv()
 
-# OpenAIクライアント初期化（v1形式）
+# OpenAIクライアント（v1形式）
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Google認証情報の辞書を環境変数から構築
+# Google認証情報を環境変数から構築
 google_creds_dict = {
     "type": os.getenv("GOOGLE_TYPE"),
     "project_id": os.getenv("GOOGLE_PROJECT_ID"),
@@ -28,21 +28,21 @@ google_creds_dict = {
 scope = ['https://www.googleapis.com/auth/spreadsheets']
 creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
 client = gspread.authorize(creds)
-sheet = client.open("ReHumanログ").sheet1
+sheet = client.open("ReHumanログ").sheet1  # スプレッドシート名を変更する場合はここ
 
-# ChatGPTからリプライを生成する関数
+# ChatGPTからリプライを生成
 def generate_reply(tweet_text):
-    prompt = f"このツイートに誠実で鋭い日本語のリプライを作成してください:\n\n{tweet_text}"
+    prompt = f"このツイートに誠実で共感のある日本語のリプライを作成してください:\n\n{tweet_text}"
     response = client_ai.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4",  # gpt-3.5-turbo でも可
         messages=[
-            {"role": "system", "content": "あなたは知的で人間味あるXアカウントの返信Botです。"},
+            {"role": "system", "content": "あなたはX（旧Twitter）上で人間味と知性をもったBotです。"},
             {"role": "user", "content": prompt}
         ]
     )
     return response.choices[0].message.content.strip()
 
-# Google Sheets にログ保存
+# Google Sheets に書き込む
 def save_to_sheet(tweet_text, reply_text):
     sheet.append_row([tweet_text, reply_text])
 
