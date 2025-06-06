@@ -2,3 +2,4 @@ openai
 gspread
 google-auth
 python-dotenv
+tweepy
