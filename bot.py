@@ -1,12 +1,16 @@
 import os
 import gspread
-from openai import OpenAI
+from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
+from openai import OpenAI
+
+# 環境変数読み込み（Railwayでもローカルでも対応）
+load_dotenv()
 
 # OpenAIクライアント（v1形式）
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Google認証情報（環境変数から）
+# Google認証情報の辞書を構築
 google_creds_dict = {
     "type": os.getenv("GOOGLE_TYPE"),
     "project_id": os.getenv("GOOGLE_PROJECT_ID"),
@@ -20,27 +24,30 @@ google_creds_dict = {
     "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL")
 }
 
+# Google Sheets APIの認証
 scope = ['https://www.googleapis.com/auth/spreadsheets']
 creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
-gs_client = gspread.authorize(creds)
-sheet = gs_client.open("ReHumanログ").sheet1
+client = gspread.authorize(creds)
+sheet = client.open("ReHumanログ").sheet1
 
+# ChatGPTでリプライを生成
 def generate_reply(tweet_text):
-    prompt = f"このツイートに誠実で共感のある日本語のリプライを作成してください:\n\n{tweet_text}"
     response = client_ai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "あなたは思慮深く共感力のあるXアカウント運用者です。"},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": "あなたは人間味と共感力をもった優しいリプライを作成するBotです。"},
+            {"role": "user", "content": f"このツイートに共感ある返信を書いてください：{tweet_text}"}
         ]
     )
     return response.choices[0].message.content.strip()
 
+# Google Sheets に書き込む関数
 def save_to_sheet(tweet_text, reply_text):
     sheet.append_row([tweet_text, reply_text])
 
+# テスト実行（デプロイ後はここが実行される）
 if __name__ == "__main__":
-    tweet = "人生は短い。だからこそ、本当にやりたいことに時間を使いたい。"
+    tweet = "今日もがんばったあなたへ。"
     reply = generate_reply(tweet)
     print("生成されたリプライ：", reply)
     save_to_sheet(tweet, reply)
