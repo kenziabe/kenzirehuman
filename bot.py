@@ -3,6 +3,7 @@ import gspread
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
+import json
 
 # 環境変数読み込み（Railwayでもローカルでも対応）
 load_dotenv()
@@ -24,8 +25,11 @@ google_creds_dict = {
     "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL")
 }
 
-# Google Sheets APIの認証
-scope = ['https://www.googleapis.com/auth/spreadsheets']
+# ✅ Google Sheets APIの認証（スコープを拡張）
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 sheet = client.open("ReHumanログ").sheet1
