@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
 import json
+import tweepy  # ← 追加
 
 # 環境変数読み込み（Railwayでもローカルでも対応）
 load_dotenv()
@@ -25,7 +26,7 @@ google_creds_dict = {
     "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL")
 }
 
-# ✅ Google Sheets APIの認証（スコープを拡張）
+# Google Sheets APIの認証
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -33,6 +34,15 @@ scope = [
 creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
 client = gspread.authorize(creds)
 sheet = client.open("ReHumanログ").sheet1
+
+# Twitter API 認証（OAuth1.0a）
+auth = tweepy.OAuth1UserHandler(
+    os.getenv("TWITTER_API_KEY"),
+    os.getenv("TWITTER_API_SECRET"),
+    os.getenv("TWITTER_ACCESS_TOKEN"),
+    os.getenv("TWITTER_ACCESS_SECRET")
+)
+twitter_client = tweepy.API(auth)
 
 # ChatGPTでリプライを生成
 def generate_reply(tweet_text):
@@ -49,9 +59,21 @@ def generate_reply(tweet_text):
 def save_to_sheet(tweet_text, reply_text):
     sheet.append_row([tweet_text, reply_text])
 
-# テスト実行（デプロイ後はここが実行される）
+# Twitterにリプライ投稿
+def post_reply(reply_text, tweet_id):
+    twitter_client.update_status(
+        status=reply_text,
+        in_reply_to_status_id=tweet_id,
+        auto_populate_reply_metadata=True
+    )
+
+# テスト実行
 if __name__ == "__main__":
     tweet = "今日もがんばったあなたへ。"
+    tweet_id = 1234567890123456789  # ← ここを実際のツイートIDに変更してテスト！
+
     reply = generate_reply(tweet)
     print("生成されたリプライ：", reply)
+
     save_to_sheet(tweet, reply)
+    post_reply(reply, tweet_id)
