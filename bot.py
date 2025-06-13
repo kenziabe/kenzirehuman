@@ -1,38 +1,26 @@
 import os
-import json
 import tweepy
 import gspread
+import json
+import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from google.oauth2.service_account import Credentials
 
-# 環境変数の読み込み
+# 環境変数読み込み
 load_dotenv()
 
-# OpenAIクライアント
+# GPTクライアント
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# GPTでツイート生成
-def generate_tweet():
-    response = client_ai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "あなたは人を前向きに励ます言葉を投稿するツイートBotです。"},
-            {"role": "user", "content": "140文字以内で今日の元気が出る言葉をツイートしてください。"}
-        ]
-    )
-    return response.choices[0].message.content.strip()
+# プロンプト一覧（案①〜③）
+prompts = [
+    "限界を超えて進化する人間＝Re:Humanとして、日々の行動や思考を変えるような一言を140文字以内でツイートしてください。",
+    "Re:Humanという自己再構築をテーマに、力・意志・習慣・哲学を持って生きる人に向けたメッセージを140文字で表現してください。",
+    "Re:Humanの精神である『本能を制し、理性で進化する』というテーマに沿った、知的で力強いツイートを140文字以内で生成してください。"
+]
 
-# Twitter API v2クライアント設定
-twitter_client = tweepy.Client(
-    bearer_token=os.getenv("TWITTER_BEARER_TOKEN"),
-    consumer_key=os.getenv("TWITTER_API_KEY"),
-    consumer_secret=os.getenv("TWITTER_API_SECRET"),
-    access_token=os.getenv("TWITTER_ACCESS_TOKEN"),
-    access_token_secret=os.getenv("TWITTER_ACCESS_SECRET")
-)
-
-# Google Sheets APIクライアント設定
+# Google Sheets連携
 google_creds_dict = {
     "type": os.getenv("GOOGLE_TYPE"),
     "project_id": os.getenv("GOOGLE_PROJECT_ID"),
@@ -49,15 +37,43 @@ scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis
 creds = Credentials.from_service_account_info(google_creds_dict, scopes=scope)
 sheet = gspread.authorize(creds).open("ReHumanログ").sheet1
 
-# ツイート内容をスプレッドシートに保存
-def save_to_sheet(tweet_text):
-    sheet.append_row([tweet_text])
+# 投稿数からプロンプトを選ぶ（ループ式）
+def select_prompt():
+    total_posts = len(sheet.get_all_values())  # ヘッダー無しで全行数
+    index = total_posts % len(prompts)
+    return prompts[index]
 
-# 投稿処理
+# GPTでツイート生成
+def generate_tweet():
+    prompt = select_prompt()
+    response = client_ai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "あなたはRe:Humanという哲学的ストイックなツイートを投稿するAIです。"},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response.choices[0].message.content.strip()
+
+# Twitter v2投稿（無料OK）
+twitter_client = tweepy.Client(
+    bearer_token=os.getenv("TWITTER_BEARER_TOKEN"),
+    consumer_key=os.getenv("TWITTER_API_KEY"),
+    consumer_secret=os.getenv("TWITTER_API_SECRET"),
+    access_token=os.getenv("TWITTER_ACCESS_TOKEN"),
+    access_token_secret=os.getenv("TWITTER_ACCESS_SECRET")
+)
+
+# 投稿実行
 def post_tweet(tweet_text):
     twitter_client.create_tweet(text=tweet_text)
 
-# 実行ブロック
+# Sheetsへ保存（日時＋内容）
+def save_to_sheet(tweet_text):
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    sheet.append_row([now, tweet_text])
+
+# 実行
 if __name__ == "__main__":
     tweet = generate_tweet()
     print("生成されたツイート：", tweet)
